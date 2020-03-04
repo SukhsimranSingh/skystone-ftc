@@ -15,6 +15,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
 import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
@@ -23,6 +24,7 @@ import org.firstinspires.ftc.teamcode.drive.mecanum.SampleMecanumDriveBase;
 import org.firstinspires.ftc.teamcode.util.AxesSigns;
 import org.firstinspires.ftc.teamcode.util.BNO055IMUUtil;
 import org.firstinspires.ftc.teamcode.util.LynxModuleUtil;
+import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.revextensions2.ExpansionHubEx;
 import org.openftc.revextensions2.ExpansionHubMotor;
 import org.openftc.revextensions2.RevBulkData;
@@ -47,6 +49,11 @@ public class SukhHardware extends SampleMecanumDriveBase {
     private BNO055IMU imu;
     private DcMotorSimple liftR = null;
     private DcMotorSimple liftL = null;
+//    private OpenCvWebcam webCamRed;
+//    private OpenCvWebcam webCamBlue;
+    private ImprovedSkystoneDetector skyStoneRedDetector;
+    private ImprovedSkystoneDetector skyStoneBlueDetector;
+
     private CRServo grabber = null;
     DigitalChannel bottomSwitch;
     Orientation angles;
@@ -117,6 +124,52 @@ public class SukhHardware extends SampleMecanumDriveBase {
         liftL = hardwareMap.get(DcMotorSimple.class, "liftL");
         grabber = hardwareMap.get(CRServo.class,"grabber");
         bottomSwitch = hardwareMap.get(DigitalChannel.class, "bottomSwitch");
+
+//        Thread redThread = new Thread() {
+//            public void init() {
+//                webCamRed = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamRed"), cameraMonitorViewId);
+//                skyStoneRedDetector = new ImprovedSkystoneDetector();
+//                webCamRed.openCameraDevice();
+//                webCamRed.setPipeline(skyStoneRedDetector);
+//            }
+//            public void run() {
+//                if (opModeIsActive()) {
+//                    telemetry.addData("Thread", "Started");
+//                    telemetry.update();
+//                    double starTime = runtime.seconds();
+//                    while (runtime.seconds() < starTime + 1) {
+//                        webCamRed.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
+//                    }
+//                    wallLPos = skyStoneRedDetector.getScreenPosition().x;
+//                    telemetry.addData("%s", wallLPos);
+//                    telemetry.update();
+//                    webCamRed.stopStreaming();
+//                }
+//            }
+//        };
+//        Thread blueThread = new Thread() {
+//            public void sukh() {
+//                if (opModeIsActive()) {
+//                    webCamBlue = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamBlue"), cameraMonitorViewId);
+//                    skyStoneBlueDetector = new ImprovedSkystoneDetector();
+//                    webCamBlue.openCameraDevice();
+//                    webCamBlue.setPipeline(skyStoneBlueDetector);
+//                }
+//            }
+//            public void run() {
+//                if (opModeIsActive()) {
+//                    telemetry.addData("Thread", "Started");
+//                    telemetry.update();
+//                    double starTime = runtime.seconds();
+//                    while (runtime.seconds() < starTime + 1) {
+//                        wallRPos = skyStoneBlueDetector.getScreenPosition().x;
+//                        telemetry.addData("%s", wallRPos);
+//                        telemetry.update();                         //Perhaps add interrupts() to break out of the loop if the threads are active for too long
+//                    }
+//                }
+//            }
+//        };
+
 
 
         bottomSwitch.setMode(DigitalChannel.Mode.INPUT);

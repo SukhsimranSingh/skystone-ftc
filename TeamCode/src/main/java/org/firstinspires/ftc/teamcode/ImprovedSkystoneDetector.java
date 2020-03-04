@@ -115,7 +115,7 @@ public class ImprovedSkystoneDetector extends DogeCVDetector {
             Imgproc.rectangle(outMat, subRect, new Scalar(255, 0, 0), 4);
             Imgproc.putText(blackMask, "Chosen", subRect.tl(), 0, 1, new Scalar(255, 255, 255));
 
-            screenPosition = new Point(bestRect.x + bestRect.width / 2, bestRect.y + bestRect.height / 2);
+            screenPosition = new Point(bestRect.x + bestRect.width / 2.0, bestRect.y + bestRect.height / 2.0);
             foundRect = bestRect;
             found = true;
         } else {

@@ -20,7 +20,7 @@ import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraRotation;
-import org.openftc.easyopencv.OpenCvWebcam;
+import org.openftc.easyopencv.OpenCvCameraFactory;
 
 @Autonomous(group = "drive")
 
@@ -32,8 +32,8 @@ public class Auto2020Red2stones extends LinearOpMode {
     private ServoImplEx SSGrabber;
     private CRServo grabber;
     private DistanceSensor wallSensorRed;
-    private OpenCvWebcam webCamRed;
-    private OpenCvWebcam webCamBlue;
+    private OpenCvCamera webCamRed;
+    private OpenCvCamera webCamBlue;
     private ImprovedSkystoneDetector skyStoneRedDetector;
     private ImprovedSkystoneDetector skyStoneBlueDetector;
     private DigitalChannel bottomSwitch;
@@ -90,84 +90,135 @@ public class Auto2020Red2stones extends LinearOpMode {
         liftL = hardwareMap.get(DcMotorSimple.class, "liftL");
         grabber = hardwareMap.get(CRServo.class, "grabber");
         bottomSwitch = hardwareMap.get(DigitalChannel.class, "bottomSwitch");
-//      SSGrabber =  hardwareMap.get(ServoImplEx.class, "SSGrabber");
 
-        // LP = negative moves lift up
-        // LP = positive moves lift down
-
-//        SSGrabber.setPwmRange(new PwmControl.PwmRange(750, 2250));
-
-//        int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-//
-//        webcamRed = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webcamRed"), cameraMonitorViewId);
-//        webcamRed.openCameraDevice();
-//        skyStoneRedDetector = new ImprovedSkystoneDetector();
-//        webcamRed.setPipeline(skyStoneRedDetector);
-//
-//        Thread t = new Thread() {
-//            public void run() {
-//                webcamBlue = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webcamBlue"), cameraMonitorViewId);
-//                webcamBlue.openCameraDevice();
-//                skyStoneBlueDetector = new ImprovedSkystoneDetector();
-//                webcamBlue.setPipeline(skyStoneBlueDetector);
-//            }
-//        };
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-//        webCamRed = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamRed"), cameraMonitorViewId);
-//        webCamBlue = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamBlue"), cameraMonitorViewId);
-//        skyStoneRedDetector = new ImprovedSkystoneDetector();
-//        skyStoneBlueDetector = new ImprovedSkystoneDetector();
+        int[] viewportContainerIds = OpenCvCameraFactory.getInstance().splitLayoutForMultipleViewports(cameraMonitorViewId, 2, OpenCvCameraFactory.ViewportSplitMethod.VERTICALLY);
+        webCamRed = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "webCamRed"), viewportContainerIds[0]);
+        skyStoneRedDetector = new ImprovedSkystoneDetector();
+        webCamBlue = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "webCamBlue"), viewportContainerIds[1]);
+        skyStoneBlueDetector = new ImprovedSkystoneDetector();
+        webCamRed.openCameraDevice();
+        webCamRed.setPipeline(skyStoneRedDetector);
+        webCamRed.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
+        webCamBlue.openCameraDevice();
+        webCamBlue.setPipeline(skyStoneBlueDetector);
+        webCamBlue.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
 
 //        Thread redThread = new webCam(webCamRed, skyStoneRedDetector, "webCamRed");
 //        Thread blueThread = new webCam(webCamBlue, skyStoneBlueDetector,"webCamBlue");
-        Thread redThread = new Thread() {
-            public void run() {
-                webCamRed = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamRed"), cameraMonitorViewId);
-                skyStoneRedDetector = new ImprovedSkystoneDetector();
-                webCamRed.openCameraDevice();
-                webCamRed.setPipeline(skyStoneRedDetector);
-                if (opModeIsActive()) {
-                    telemetry.addData("Thread", "Started");
-                    telemetry.update();
-                    double starTime = runtime.seconds();
-                    while (runtime.seconds() < starTime + 1) {
-                        webCamRed.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
-                    }
-                    wallLPos = skyStoneRedDetector.getScreenPosition().x;
-                    telemetry.addData("%s", wallLPos);
-                    telemetry.update();
-                    webCamRed.stopStreaming();
-                }
-            }
-        };
-        Thread blueThread = new Thread() {
-            public void run() {
-                webCamBlue = new OpenCvWebcam(hardwareMap.get(WebcamName.class, "webCamBlue"), cameraMonitorViewId);
-                skyStoneBlueDetector = new ImprovedSkystoneDetector();
-                webCamBlue.openCameraDevice();
-                webCamBlue.setPipeline(skyStoneBlueDetector);
-                if (opModeIsActive()) {
-                    telemetry.addData("Thread", "Started");
-                    telemetry.update();
-                    double starTime = runtime.seconds();
-                    while (runtime.seconds() < starTime + 1) {
-                        wallRPos = skyStoneBlueDetector.getScreenPosition().x;
-                        telemetry.addData("%s", wallRPos);
-                        telemetry.update();                         //Perhaps add interrupts() to break out of the loop if the threads are active for too long
-                    }
-                }
-            }
-        };
-        telemetry.addData("Threads", "created");
-        telemetry.update();
+//        telemetry.addData("Threads have been successfully", "initialized");
+//        telemetry.update();
+
         waitForStart();
-        redThread.start();
-        blueThread.start();
-        telemetry.addData("Threads", "Started");
-        telemetry.update();
+
+        wallLPos = skyStoneRedDetector.getScreenPosition().x;
+        wallRPos = skyStoneBlueDetector.getScreenPosition().x;
+
+//        redThread.start();
+//        blueThread.start();
+//        telemetry.addData("Threads", "Started");
+//        telemetry.update();
+
         stereoscopicVision();
     }
 
+    public class webCam extends Thread {
+        OpenCvCamera camera;
+        ImprovedSkystoneDetector detector;
+        String name;
+
+        webCam(OpenCvCamera webCam, ImprovedSkystoneDetector detect, String deviceName) {
+            telemetry.addData("Entered Thread", "Variable Creation");
+            telemetry.update();
+
+            int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
+            int[] viewportContainerIds = OpenCvCameraFactory.getInstance().splitLayoutForMultipleViewports(cameraMonitorViewId, 2, OpenCvCameraFactory.ViewportSplitMethod.VERTICALLY);
+
+            camera = webCam;
+            detector = detect;
+            name = deviceName;
+
+            if (name.equals("webCamRed"))
+                camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, name), viewportContainerIds[0]);
+            else if (name.equals("webCamBlue"))
+                camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, name), viewportContainerIds[1]);
+
+            detector = new ImprovedSkystoneDetector();
+            camera.openCameraDevice();
+            camera.setPipeline(detector);
+
+            camera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
+            telemetry.addData("Started Camera Stream %s", getName());
+            telemetry.update();
+
+            telemetry.addData("Exiting Thread", "Variables Created");
+            telemetry.update();
+        }
+        @Override
+        public void run() {
+            try {
+                while (opModeIsActive() && !isInterrupted()) {
+                    if (name.equals("webCamRed")) {
+                        telemetry.addData("Starting Screen Position for camera %s", getName());
+                        telemetry.update();
+
+                        wallLPos = detector.getScreenPosition().x;
+
+                        telemetry.addData("%s", wallLPos);
+                        telemetry.update();
+                    } else if (name.equals("webCamBlue")) {
+                        wallRPos = detector.getScreenPosition().x;
+                        telemetry.addData("%s", wallRPos);
+                        telemetry.update();                                                         //Perhaps add interrupts() to break out of the loop if the threads are active for too long
+                    }
+                    interrupt();
+                }
+            } catch (Exception e) {
+                telemetry.addData("Could not set up the camera: %s", e.toString());
+                telemetry.update();
+            }
+        }
+    }
+
+    private void stereoscopicVision() {
+        if (opModeIsActive()) {
+            double angleA = wallLPos / (320.000 / 52.000) + 64;
+            double angleB = wallRPos / (320.000 / 52.000) + 64;
+            double angleC = 180.000 - (angleA + angleB);
+
+            angleA = Math.toRadians(angleA);
+            angleB = Math.toRadians(angleB);
+            angleC = Math.toRadians(angleC);
+
+            double posL = 14.500 * Math.sin(angleB) / Math.sin(angleC);
+            double posR = 14.500 * Math.sin(angleA) / Math.sin(angleC);
+            telemetry.addData("posL", posL);
+            telemetry.addData("posR", posR);
+            telemetry.addData("angleA", angleA);
+            telemetry.addData("angleB", angleB);
+            telemetry.addData("angleC", angleC);
+//            double f = posR * Math.cos(angleB);                                                   //Perhaps you need an if statement if the robot is to the left of the robot
+//            double dY = 14.5 - f;
+//            double dX = posL * posR / 14.500;
+//            double dTheta = Math.atan2(dY, dX);
+            double dY = (posR * posL) / 14.500;
+            double dX = 7.25 - posL * Math.cos(angleB);
+            double dTheta = Math.atan2(dY, dX);                                                     //TODO see if its in the right orient cause the cameras see
+            telemetry.addData("dY", dY);
+            telemetry.addData("dX", dX);
+            telemetry.addData("dTheta", dTheta);
+            telemetry.update();
+            double x = drive.getPoseEstimate().getX();
+            double y = drive.getPoseEstimate().getY();
+            double theta = drive.getPoseEstimate().getHeading();
+            sleep(5000);
+//            drive.followTrajectorySync(
+//                    drive.trajectoryBuilder()
+//                            .splineTo(new Pose2d(x + dX, y + dY, theta + Math.toRadians(dTheta)))
+//                            .build()
+//            );
+        }
+    }
 //        splineTest();
 //        goToFoundationSpline();
 //        findSkystoneNumber();
@@ -1323,76 +1374,4 @@ public class Auto2020Red2stones extends LinearOpMode {
 //            }
 //        }
 //    }
-
-    private void stereoscopicVision() {
-        if (opModeIsActive()) {
-            double angleA = wallLPos / (640.000 / 52.000);
-            double angleB = wallRPos / (640.000 / 52.000);
-            double angleC = 180.000 - (angleA + angleB);
-
-            double posL = 14.500 * Math.sin(angleB) / Math.sin(angleC);
-            double posR = 14.500 * Math.sin(angleA) / Math.sin(angleC);
-
-//            double f = posR * Math.cos(angleB);                                                   //Perhaps you need an if statement if the robot is to the left of the robot
-//            double dY = 14.5 - f;
-//            double dX = posL * posR / 14.500;
-//            double dTheta = Math.atan2(dY, dX);
-            double dY = posR * posL / 14.500;
-            double dX = 7.25 - posL * Math.cos(angleB);
-            double dTheta = Math.atan2(dY, dX);                                                     //TODO see if its in the right orient cause the cameras see
-            //            
-            //
-//
-            //
-            double x = drive.getPoseEstimate().getX();
-            double y = drive.getPoseEstimate().getY();
-            double theta = drive.getPoseEstimate().getHeading();
-            drive.followTrajectorySync(
-                    drive.trajectoryBuilder()
-                            .splineTo(new Pose2d(x + dX, y + dY, theta + dTheta))
-                            .build()
-            );
-        }
-    }
-
-    public class webCam extends Thread {
-        OpenCvWebcam camera;
-        ImprovedSkystoneDetector detector;
-        String name;
-
-        webCam(OpenCvWebcam webCam, ImprovedSkystoneDetector detect, String deviceName) {
-            while (opModeIsActive()) {
-                camera = webCam;
-                detector = detect;
-                name = deviceName;
-            }
-        }
-
-        @Override
-        public void run() {
-            try {
-                while (opModeIsActive()) {
-                    double starTime = runtime.seconds();
-                    while (runtime.seconds() < starTime + 1) {
-                        camera.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
-                    }
-                    if (name.equals("webCamRed")) {
-                        wallLPos = detector.getScreenPosition().x;
-                        telemetry.addData("%s", wallLPos);
-                        telemetry.update();
-                        camera.stopStreaming();
-                    } else if (name.equals("webCamBlue")) {
-                        wallRPos = detector.getScreenPosition().x;
-                        telemetry.addData("%s", wallRPos);
-                        telemetry.update();
-                        camera.stopStreaming();                                                     //Perhaps add interrupts() to break out of the loop if the threads are active for too long
-                    }
-                    interrupt();
-                }
-            } catch (Exception e) {
-                telemetry.addData("Could not set up the camera: %s", e.toString());
-                telemetry.update();
-            }
-        }
-    }
 }
