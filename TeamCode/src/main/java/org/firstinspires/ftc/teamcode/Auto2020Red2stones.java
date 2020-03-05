@@ -6,6 +6,7 @@ import com.acmerobotics.roadrunner.trajectory.Trajectory;
 import com.acmerobotics.roadrunner.trajectory.constraints.DriveConstraints;
 import com.acmerobotics.roadrunner.trajectory.constraints.MecanumConstraints;
 import com.disnodeteam.dogecv.detectors.skystone.SkystoneDetector;
+import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -17,7 +18,11 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
+import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
 import org.openftc.easyopencv.OpenCvCamera;
 import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvCameraFactory;
@@ -37,6 +42,7 @@ public class Auto2020Red2stones extends LinearOpMode {
     private ImprovedSkystoneDetector skyStoneRedDetector;
     private ImprovedSkystoneDetector skyStoneBlueDetector;
     private DigitalChannel bottomSwitch;
+    private BNO055IMU imu;
     private double SS;
     private double wallLPos;
     private double wallRPos;
@@ -45,41 +51,6 @@ public class Auto2020Red2stones extends LinearOpMode {
     MecanumConstraints constraints = new MecanumConstraints(
             new DriveConstraints(70.0, 30.0, 0.0, Math.toRadians(180.0), Math.toRadians(180.0), 0.0),
             18.9, 14.0);
-
-
-
-    public void PIDforward(double Distance) {
-
-        Trajectory trajectory = drive.trajectoryBuilder()
-                .forward(Distance)
-                .build();
-
-        if (opModeIsActive()) {
-
-            if (isStopRequested()) return;
-
-            drive.followTrajectorySync(trajectory);
-        }
-    }
-
-    public void PIDTurn(double angle) {
-
-        if (opModeIsActive()) {
-            drive.turnSync(Math.toRadians(angle));
-        }
-    }
-
-    public void PIDwalk() {
-        if (opModeIsActive()) return;
-
-        while (opModeIsActive()) {
-            drive.followTrajectorySync(
-                    drive.trajectoryBuilder()
-                            .forward(48)
-                            .build()
-            );
-        }
-    }
 
     @Override
     public void runOpMode() {
@@ -90,6 +61,14 @@ public class Auto2020Red2stones extends LinearOpMode {
         liftL = hardwareMap.get(DcMotorSimple.class, "liftL");
         grabber = hardwareMap.get(CRServo.class, "grabber");
         bottomSwitch = hardwareMap.get(DigitalChannel.class, "bottomSwitch");
+
+        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
+        parameters.mode                = BNO055IMU.SensorMode.IMU;
+        parameters.angleUnit           = BNO055IMU.AngleUnit.RADIANS;
+        parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
+        parameters.loggingEnabled      = false;
+        imu = hardwareMap.get(BNO055IMU.class, "imu");
+        imu.initialize(parameters);
 
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         int[] viewportContainerIds = OpenCvCameraFactory.getInstance().splitLayoutForMultipleViewports(cameraMonitorViewId, 2, OpenCvCameraFactory.ViewportSplitMethod.VERTICALLY);
@@ -104,119 +83,80 @@ public class Auto2020Red2stones extends LinearOpMode {
         webCamBlue.setPipeline(skyStoneBlueDetector);
         webCamBlue.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
 
-//        Thread redThread = new webCam(webCamRed, skyStoneRedDetector, "webCamRed");
-//        Thread blueThread = new webCam(webCamBlue, skyStoneBlueDetector,"webCamBlue");
-//        telemetry.addData("Threads have been successfully", "initialized");
-//        telemetry.update();
-
         waitForStart();
-
-        wallLPos = skyStoneRedDetector.getScreenPosition().x;
-        wallRPos = skyStoneBlueDetector.getScreenPosition().x;
-
-//        redThread.start();
-//        blueThread.start();
-//        telemetry.addData("Threads", "Started");
-//        telemetry.update();
-
-        stereoscopicVision();
-    }
-
-    public class webCam extends Thread {
-        OpenCvCamera camera;
-        ImprovedSkystoneDetector detector;
-        String name;
-
-        webCam(OpenCvCamera webCam, ImprovedSkystoneDetector detect, String deviceName) {
-            telemetry.addData("Entered Thread", "Variable Creation");
-            telemetry.update();
-
-            int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-            int[] viewportContainerIds = OpenCvCameraFactory.getInstance().splitLayoutForMultipleViewports(cameraMonitorViewId, 2, OpenCvCameraFactory.ViewportSplitMethod.VERTICALLY);
-
-            camera = webCam;
-            detector = detect;
-            name = deviceName;
-
-            if (name.equals("webCamRed"))
-                camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, name), viewportContainerIds[0]);
-            else if (name.equals("webCamBlue"))
-                camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, name), viewportContainerIds[1]);
-
-            detector = new ImprovedSkystoneDetector();
-            camera.openCameraDevice();
-            camera.setPipeline(detector);
-
-            camera.startStreaming(320, 240, OpenCvCameraRotation.UPRIGHT);
-            telemetry.addData("Started Camera Stream %s", getName());
-            telemetry.update();
-
-            telemetry.addData("Exiting Thread", "Variables Created");
-            telemetry.update();
-        }
-        @Override
-        public void run() {
-            try {
-                while (opModeIsActive() && !isInterrupted()) {
-                    if (name.equals("webCamRed")) {
-                        telemetry.addData("Starting Screen Position for camera %s", getName());
-                        telemetry.update();
-
-                        wallLPos = detector.getScreenPosition().x;
-
-                        telemetry.addData("%s", wallLPos);
-                        telemetry.update();
-                    } else if (name.equals("webCamBlue")) {
-                        wallRPos = detector.getScreenPosition().x;
-                        telemetry.addData("%s", wallRPos);
-                        telemetry.update();                                                         //Perhaps add interrupts() to break out of the loop if the threads are active for too long
-                    }
-                    interrupt();
-                }
-            } catch (Exception e) {
-                telemetry.addData("Could not set up the camera: %s", e.toString());
-                telemetry.update();
-            }
-        }
+        while(getRuntime() < 30)
+            stereoscopicVision();
     }
 
     private void stereoscopicVision() {
         if (opModeIsActive()) {
-            double angleA = wallLPos / (320.000 / 52.000) + 64;
-            double angleB = wallRPos / (320.000 / 52.000) + 64;
-            double angleC = 180.000 - (angleA + angleB);
+            double dTheta = -1 * imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZXY, AngleUnit.RADIANS).firstAngle;
+            if (Math.abs(dTheta) > Math.toRadians(5)) {
+                PIDTurn(dTheta);
+            } else {
+                double dY, dX;
+                wallLPos = skyStoneRedDetector.getScreenPosition().x;
+                wallRPos = skyStoneBlueDetector.getScreenPosition().x;
+                double angleA = wallLPos / (320.000 / 52.000) + 64;
+                double angleB = wallRPos / (320.000 / 52.000) + 64;
+                double angleC = 180.000 - (angleA + angleB);
 
-            angleA = Math.toRadians(angleA);
-            angleB = Math.toRadians(angleB);
-            angleC = Math.toRadians(angleC);
+                angleA = Math.toRadians(angleA);
+                angleB = Math.toRadians(angleB);
+                angleC = Math.toRadians(angleC);
 
-            double posL = 14.500 * Math.sin(angleB) / Math.sin(angleC);
-            double posR = 14.500 * Math.sin(angleA) / Math.sin(angleC);
-            telemetry.addData("posL", posL);
-            telemetry.addData("posR", posR);
-            telemetry.addData("angleA", angleA);
-            telemetry.addData("angleB", angleB);
-            telemetry.addData("angleC", angleC);
-//            double f = posR * Math.cos(angleB);                                                   //Perhaps you need an if statement if the robot is to the left of the robot
-//            double dY = 14.5 - f;
-//            double dX = posL * posR / 14.500;
-//            double dTheta = Math.atan2(dY, dX);
-            double dY = (posR * posL) / 14.500;
-            double dX = 7.25 - posL * Math.cos(angleB);
-            double dTheta = Math.atan2(dY, dX);                                                     //TODO see if its in the right orient cause the cameras see
-            telemetry.addData("dY", dY);
-            telemetry.addData("dX", dX);
-            telemetry.addData("dTheta", dTheta);
-            telemetry.update();
-            double x = drive.getPoseEstimate().getX();
-            double y = drive.getPoseEstimate().getY();
-            double theta = drive.getPoseEstimate().getHeading();
-            sleep(5000);
+                double posL = 14.500 * Math.sin(angleB) / Math.sin(angleC);
+                double posR = 14.500 * Math.sin(angleA) / Math.sin(angleC);
+
+
+//                double dY = (posR * posL) / 14.500;
+//                double dX = 7.25 - (posL * Math.cos(angleB));
+                double diagonal = (Math.pow(posR, 2) + Math.pow(posL, 2)) / 29.0;
+                if (angleA > Math.PI / 2.0) {
+                    double phi = angleA - (Math.PI / 2.0) + (angleC / 2.0);
+                    dY = diagonal * Math.cos(phi);
+                    dX = diagonal * Math.sin(phi);
+                } else if (angleB > Math.PI / 2.0) {
+                    double phi = angleB - (Math.PI / 2.0) + (angleC / 2.0);
+                    dY = diagonal * Math.cos(phi);
+                    dX = diagonal * Math.sin(phi) * -1;
+                } else if (angleA <= Math.PI / 2.0 && angleB <= Math.PI / 2.0 && posR > posL) {
+                    double phi = angleB + (angleC / 2.0);
+                    dY = diagonal * Math.sin(phi);
+                    dX = diagonal * Math.cos(phi);
+                } else {
+                    double phi = angleA + (angleC / 2.0);
+                    dY = diagonal * Math.sin(phi);
+                    dX = diagonal * Math.cos(phi) * -1;
+                }
+
+                telemetry.addData("posL", posL);
+                telemetry.addData("posR", posR);
+                telemetry.addData("diagonal", diagonal);
+                telemetry.addData("angleA", angleA);
+                telemetry.addData("angleB", angleB);
+                telemetry.addData("angleC", angleC);
+                telemetry.addData("dY", dY);
+                telemetry.addData("dX", dX);
+                telemetry.addData("dTheta", dTheta);
+                telemetry.update();
+
+                double x = drive.getPoseEstimate().getX();
+                double y = drive.getPoseEstimate().getY();
+                double theta = drive.getPoseEstimate().getHeading();
+                sleep(5000);
 //            drive.followTrajectorySync(
 //                    drive.trajectoryBuilder()
-//                            .splineTo(new Pose2d(x + dX, y + dY, theta + Math.toRadians(dTheta)))
+//                            .splineTo(new Pose2d(x + dX, y + dY, theta))
 //                            .build()
 //            );
+            }
+        }
+    }
+    public void PIDTurn(double angle) {
+
+        if (opModeIsActive()) {
+            drive.turnSync(angle);
         }
     }
 //        splineTest();
@@ -264,6 +204,33 @@ public class Auto2020Red2stones extends LinearOpMode {
 //        PIDforward(10);
 //    }
 //
+//
+//    public void PIDforward(double Distance) {
+//
+//        Trajectory trajectory = drive.trajectoryBuilder()
+//                .forward(Distance)
+//                .build();
+//
+//        if (opModeIsActive()) {
+//
+//            if (isStopRequested()) return;
+//
+//            drive.followTrajectorySync(trajectory);
+//        }
+//    }
+//
+//
+//    public void PIDwalk() {
+//        if (opModeIsActive()) return;
+//
+//        while (opModeIsActive()) {
+//            drive.followTrajectorySync(
+//                    drive.trajectoryBuilder()
+//                            .forward(48)
+//                            .build()
+//            );
+//        }
+//    }
 //    public void PIDstrafeLeft(double Distance) {
 //
 //        Trajectory trajectory = drive.trajectoryBuilder()
