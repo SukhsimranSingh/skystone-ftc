@@ -949,6 +949,9 @@ public class AutoDriveRed2stones2020NoGrabber extends LinearOpMode {
                     drive.followTrajectorySync(
                             drive.trajectoryBuilder()
                                     .splineTo(new Pose2d(35, 25, Math.toRadians(0)))
+                                    .addMarker(() -> {
+                                        //do something
+                                    })
                                     .build()
                     );
                     PIDforward(2);
